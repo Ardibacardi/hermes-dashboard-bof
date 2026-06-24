@@ -1,14 +1,19 @@
 /**
  * Ad Miner Dashboard — Hermes plugin entry point
  * 
- * Uses __HERMES_PLUGIN_SDK__ for React, API calls, and theme tokens.
- * register() returns the tab component for Hermes to mount.
+ * Registers a dashboard tab showing TrendTrack credits, pipeline status,
+ * and recent mining results. Uses Hermes Plugin SDK.
  */
-
 (function() {
   var SDK = window.__HERMES_PLUGIN_SDK__;
+  var PLUGINS = window.__HERMES_PLUGINS__;
+  
   if (!SDK || !SDK.React) {
     console.error("Ad Miner: Hermes Plugin SDK not found");
+    return;
+  }
+  if (!PLUGINS) {
+    console.error("Ad Miner: __HERMES_PLUGINS__ not found");
     return;
   }
 
@@ -19,8 +24,6 @@
   var useCallback = React.useCallback;
   var fetchJSON = SDK.fetchJSON;
 
-  // --- API helpers ---
-
   function safeFetch(endpoint) {
     if (!fetchJSON) {
       return Promise.resolve({ ok: false, error: "SDK.fetchJSON unavailable" });
@@ -29,8 +32,6 @@
       .then(function(d) { return { ok: true, data: d }; })
       .catch(function(e) { return { ok: false, error: e && e.message ? e.message : String(e) }; });
   }
-
-  // --- Components ---
 
   function KPICard(props) {
     return h("div", { className: "adm-card" },
@@ -56,8 +57,6 @@
       })
     );
   }
-
-  // --- Main Page ---
 
   function AdMinerPage() {
     var creditsState = useState(null);
@@ -106,15 +105,7 @@
     );
   }
 
-  // --- Register with Hermes ---
-  // Hermes calls register(SDK) and expects { name, icon, path, component }
-  // or the tab is derived from manifest.json
-
-  function register(pluginSDK) {
-    return {
-      component: function() { return pluginSDK.React.createElement(AdMinerPage); }
-    };
-  }
-
-  window.__hermes_plugin_register__ = register;
+  // Register with Hermes
+  PLUGINS.register("ad-miner-dashboard", AdMinerPage);
+  console.log("Ad Miner: registered tab");
 })();
