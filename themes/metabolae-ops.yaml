@@ -1,0 +1,39 @@
+# Metabolae Ops
+# Dashboard theme for Hermes Agent — dark green + warm amber accent
+
+name: Metabolae Ops
+layoutVariant: default
+density: comfortable
+
+palette:
+  background: "#0a1a14"
+  foreground: "#c8e6c9"
+  card: "#0d211a"
+  cardBorder: "#1a3a2a"
+  accent: "#00c853"
+  accentForeground: "#0a1a14"
+  muted: "#4a7a5a"
+  mutedForeground: "#8fbc8f"
+  danger: "#ff5252"
+  warning: "#ffab40"
+  success: "#00e676"
+  border: "#1a3a2a"
+  input: "#0d211a"
+  ring: "#00c853"
+
+fonts:
+  body: "'Inter', system-ui, sans-serif"
+  mono: "'JetBrains Mono', monospace"
+  heading: "'Inter', system-ui, sans-serif"
+
+components:
+  card:
+    borderRadius: 8px
+    shadow: "0 2px 8px rgba(0,200,83,0.08)"
+  header:
+    borderBottom: "1px solid var(--color-border)"
+  tab:
+    activeColor: var(--color-accent)
+    inactiveColor: var(--color-muted)
+  badge:
+    borderRadius: 4px

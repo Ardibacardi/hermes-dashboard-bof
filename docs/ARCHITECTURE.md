@@ -1,54 +1,67 @@
 # Hermes Dashboard — Architecture
 
+## Overview
+
+A Hermes Agent dashboard plugin for Metabolae ad mining operations.
+Follows the same plugin pattern as [hermes-chronos-forge](https://github.com/joeynyc/hermes-chronos-forge).
+
 ## Data Flow
 
 ```
-TrendTrack API
-     │
-     ▼
-┌─────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│  ad-miner   │───▶│  KPI Filtering   │───▶│  Transformation  │
-│   plugin    │    │  (50K+ reach,    │    │  (creative       │
-│             │    │   14d+ running)  │    │   strategist KB) │
-└─────────────┘    └──────────────────┘    └────────┬────────┘
-                                                     │
-                                                     ▼
-                                            ┌─────────────────┐
-                                            │  Google Sheets   │
-                                            │  "BOF Ad Miner   │
-                                            │   Results"       │
-                                            └─────────────────┘
+TrendTrack API                    Hermes Cron (0ff6dc052b72)
+     │                                    │
+     │  /v1/lookup, /v1/ads/query         │  Mon/Wed/Fri 09:00 UTC
+     │  /v1/brandtrackers/{id}/top-ads    │  bof-ad-miner skill
+     ▼                                    ▼
+┌─────────────────┐              ┌──────────────────┐
+│  ad-miner       │              │  KPI Filtering   │
+│  plugin tools   │──────────────▶  (5 tools)       │
+│  (5 tools)      │              │  50K+ reach      │
+└─────────────────┘              │  14d+ running    │
+                                 └────────┬─────────┘
+                                          │
+                                          ▼
+                                 ┌──────────────────┐
+                                 │  Google Sheets    │
+                                 │  "BOF Ad Miner    │
+                                 │   Results"        │
+                                 └────────┬─────────┘
+                                          │
+                                          ▼
+                                 ┌──────────────────┐
+                                 │  Dashboard Tab    │
+                                 │  /ad-miner        │
+                                 │  (this repo)      │
+                                 └──────────────────┘
 ```
 
-## Cron Schedule
+## Plugin Architecture
 
 ```
-┌───────┬───────┬───────┬───────┬───────┬───────┬───────┐
-│  Sun  │  Mon  │  Tue  │  Wed  │  Thu  │  Fri  │  Sat  │
-│       │ 9 UTC │       │ 9 UTC │       │ 9 UTC │       │
-│       │   🔍  │       │   🔍  │       │   🔍  │       │
-└───────┴───────┴───────┴───────┴───────┴───────┴───────┘
+plugins/ad-miner-dashboard/dashboard/
+├── manifest.json       ┌─ Tab registration: label, icon, path
+│                       └─ API module: plugin_api.py
+├── plugin_api.py       ┌─ GET /status         → credits, last run, total ads
+│                       ├─ GET /recent-results  → last 5 mining runs
+│                       └─ GET /check-trendtrack→ API health + credit balance
+└── dist/
+    ├── index.js        ┌─ Fetches all 3 endpoints on load
+    │                   └─ Auto-refreshes every 60s
+    └── style.css       └─ Theme-agnostic (uses --color-* tokens)
 ```
 
-## Tool Architecture (Plugin)
+## Hermes Integration Points
 
-```
-plugin.yaml ──▶ declares 5 tools, 1 skill, 1 env var
-     │
-     ├── schemas.py ──▶ tool definitions (what LLM sees)
-     │
-     └── tools.py ──▶ handler implementations
-          ├── trendtrack_lookup()      — zero-credit ID resolution
-          ├── trendtrack_search_ads()  — POST /v1/ads/query
-          ├── trendtrack_get_overview()— brandtracker overview
-          ├── filter_ads_by_kpi()      — threshold + scoring
-          └── transform_for_metabolae()— creative brief scaffold
-```
+| Component | Hermes Path | Purpose |
+|-----------|-------------|---------|
+| Dashboard tab | `localhost:9119/ad-miner` | Live ops board |
+| Plugin files | `~/.hermes/plugins/ad-miner-dashboard/` | Served by Hermes dashboard |
+| Cron job | `0ff6dc052b72` | Scheduled ad mining |
+| Skill | `bof-ad-miner` | Workflow instructions + tools |
+| Tool schemas | `bof-ad-miner/references/schemas.py` | 5 tool definitions |
+| Tool handlers | `bof-ad-miner/references/tools.py` | 5 handler implementations |
 
-## Future: Dashboard UI
+## Theme
 
-Planned integration points:
-- Claude API for creative brief generation
-- GitHub API for version-controlled ad copy
-- Live TrendTrack data feeds
-- KPI monitoring dashboards
+`themes/metabolae-ops.yaml` — dark green + warm amber accent, theme-agnostic plugin UI.
+The plugin reads `--color-*` CSS tokens so it works with any Hermes theme.

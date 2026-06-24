@@ -1,0 +1,92 @@
+/* Ad Miner Dashboard Styles */
+
+.ad-miner-loading {
+  padding: 2rem;
+  text-align: center;
+  opacity: 0.6;
+  font-style: italic;
+}
+
+.ad-miner-grid {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.ad-miner-card {
+  background: var(--color-card, #1a1a2e);
+  border: 1px solid var(--color-border, #2a2a4a);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+}
+
+.ad-miner-card-header {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-muted, #888);
+  margin-bottom: 0.25rem;
+}
+
+.ad-miner-card-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-accent, #00d4aa);
+}
+
+.ad-miner-card-value.dim {
+  opacity: 0.4;
+}
+
+.ad-miner-card-sub {
+  font-size: 0.7rem;
+  color: var(--color-muted, #666);
+  margin-top: 0.25rem;
+}
+
+.ad-miner-section {
+  grid-column: 1 / -1;
+  margin-top: 1rem;
+}
+
+.ad-miner-section h3 {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-muted, #888);
+  margin-bottom: 0.75rem;
+}
+
+.ad-miner-empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--color-muted, #666);
+  border: 1px dashed var(--color-border, #333);
+  border-radius: 8px;
+}
+
+.ad-miner-result-row {
+  display: flex;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--color-border, #2a2a4a);
+  font-size: 0.8rem;
+}
+
+.ad-miner-result-row:last-child {
+  border-bottom: none;
+}
+
+.ad-miner-result-date {
+  color: var(--color-muted, #888);
+  min-width: 100px;
+}
+
+.ad-miner-result-file {
+  color: var(--color-text, #ccc);
+}
+
+.ad-miner-result-error {
+  color: var(--color-danger, #ff4444);
+  font-size: 0.7rem;
+}

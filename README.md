@@ -1,78 +1,66 @@
-# Hermes Dashboard
+# Hermes Dashboard — Ad Miner Plugin
 
-Hermes Agent dashboard for Metabolae e-commerce operations — ad mining, creative strategy, API integrations, and cross-profile workflow orchestration.
+Hermes Agent dashboard extension for Metabolae BOF ad mining operations. A live ops board showing TrendTrack ad intelligence, KPI filtering pipeline, and creative transformation status.
 
-## Components
+Built as a Hermes dashboard plugin — drop-in install, no fork required.
 
-### 🔍 Ad Miner (`ad-miner/`)
-BOF ad mining pipeline using TrendTrack API:
-- Search for high-performing competitor ads in supplement/health niches
-- KPI filtering (50K+ reach, 14+ days running, rank/reach deltas)
-- Creative transformation for Metabolae brand using creative strategist knowledge base
-- Google Sheets integration for results delivery
-- Cron-scheduled via Hermes (Mon/Wed/Fri 9am UTC)
+## What It Provides
 
-**Plugin files:** `~/.hermes/plugins/ad-miner/`
-**Skill:** `bof-ad-miner` (installed in Hermes)
+- **Ad Miner tab** — live dashboard tab at `/ad-miner` on the Hermes dashboard
+- **Credits gauge** — TrendTrack credit balance, refreshed every 60s
+- **Pipeline status** — last run time, total ads mined, next cron trigger
+- **Recent results** — last 5 mining runs with file links
+- **Plugin API** — Python backend endpoints for status, trendtrack check, and results
 
-### 📊 Dashboard (`dashboard/`)
-Planned: AI dashboard connecting:
-- Claude API / Claude-like project workspaces
-- GitHub API
-- TrendTrack API
-- Meta Ads Library API (future)
-- Developer workflow metrics
-
-### 🛠 Scripts (`scripts/`)
-Utility scripts for data processing, API testing, and automation.
-
-### 📚 Docs (`docs/`)
-- Architecture documentation
-- API references
-- Setup guides
-
-## Setup
-
-### Prerequisites
-1. Hermes Agent installed
-2. TrendTrack API key (`TRENDTRACK_API_KEY` in `~/.hermes/.env`)
-3. Google OAuth configured (for Sheets delivery)
-4. Creative strategist knowledge base at `~/workspace/creative-strategist/markdown/`
-
-### Quick Start
-```bash
-# Load the skill
-hermes -s bof-ad-miner
-
-# Run ad mining manually
-hermes chat -q "Run the BOF Ad Miner workflow"
-```
-
-### Cron Job
-```
-Job ID: 0ff6dc052b72
-Schedule: Mon/Wed/Fri 9am UTC
-Skills: bof-ad-miner, creative-strategist-knowledge, google-workspace
-Delivery: Google Sheets (fallback: local file)
-```
-
-## Profile Architecture
-
-| Profile | Role |
-|---------|------|
-| `default` | Planning, API research, coordination |
-| `coder` | Plugin/tool building, Python development |
-| `creative-strategist` | Ad analysis, brand transformation |
-
-## Environment Variables
+## Install
 
 ```bash
-TRENDTRACK_API_KEY=***    # From app.trendtrack.io/workspace/settings/api
+bash install.sh
 ```
 
-## Related Documentation
+Copies files to:
+- `~/.hermes/plugins/ad-miner-dashboard/dashboard/` (plugin)
+- `~/.hermes/dashboard-themes/metabolae-ops.yaml` (optional theme)
 
-- [BOF Ad Miner Skill](./docs/bof-ad-miner.md)
-- [Plan Document](./docs/PLAN.md)
-- [TrendTrack API Reference](https://docs.trendtrack.io/en/docs)
-- [Hermes Agent Plugin Guide](https://hermes-agent.nousresearch.com/docs/guides/build-a-hermes-plugin)
+Then start the dashboard:
+
+```bash
+hermes dashboard
+```
+
+Open `http://127.0.0.1:9119` and select the **Ad Miner** tab.
+
+If already running, trigger a rescan:
+
+```bash
+curl -X POST http://127.0.0.1:9119/api/dashboard/plugins/rescan
+```
+
+## File Structure
+
+```
+plugins/ad-miner-dashboard/dashboard/
+├── manifest.json       # Plugin metadata + tab registration
+├── plugin_api.py       # Backend API (status, trendtrack, results)
+└── dist/
+    ├── index.js        # Frontend UI (credit gauge, pipeline status, recent runs)
+    └── style.css       # Theme-agnostic styles using --color-* tokens
+
+themes/
+└── metabolae-ops.yaml  # Optional theme (dark green + amber accent)
+
+install.sh              # Drop-in installer
+```
+
+## Requirements
+
+- Hermes Agent >= 0.11.0
+- TrendTrack API key in `TRENDTRACK_API_KEY` env var
+- `bof-ad-miner` skill installed (for cron pipeline)
+- `google-workspace` skill for Sheets delivery (optional)
+
+## Related
+
+- [BOF Ad Miner Skill](https://github.com/NousResearch/hermes-agent) — the cron pipeline
+- [Hermes Agent Dashboard Docs](https://hermes-agent.nousresearch.com/docs/user-guide/features/dashboard)
+- [Chronos Forge](https://github.com/joeynyc/hermes-chronos-forge) — reference implementation
