@@ -1,92 +1,94 @@
 /* Ad Miner Dashboard Styles */
 
-.ad-miner-loading {
+.adm-loading {
   padding: 2rem;
   text-align: center;
   opacity: 0.6;
   font-style: italic;
+  color: var(--color-muted-foreground);
 }
 
-.ad-miner-grid {
+.adm-grid {
   display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
   padding: 1rem;
 }
 
-.ad-miner-card {
-  background: var(--color-card, #1a1a2e);
-  border: 1px solid var(--color-border, #2a2a4a);
+@media (max-width: 768px) {
+  .adm-grid { grid-template-columns: 1fr; }
+}
+
+.adm-card {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 1rem 1.25rem;
 }
 
-.ad-miner-card-header {
+.adm-card-label {
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--color-muted, #888);
+  color: var(--color-muted-foreground);
   margin-bottom: 0.25rem;
 }
 
-.ad-miner-card-value {
+.adm-card-value {
   font-size: 1.5rem;
   font-weight: 700;
-  color: var(--color-accent, #00d4aa);
 }
 
-.ad-miner-card-value.dim {
-  opacity: 0.4;
-}
-
-.ad-miner-card-sub {
+.adm-card-sub {
   font-size: 0.7rem;
-  color: var(--color-muted, #666);
+  color: var(--color-muted-foreground);
   margin-top: 0.25rem;
+  opacity: 0.7;
 }
 
-.ad-miner-section {
+.adm-section {
   grid-column: 1 / -1;
   margin-top: 1rem;
 }
 
-.ad-miner-section h3 {
+.adm-section h3 {
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--color-muted, #888);
+  color: var(--color-muted-foreground);
   margin-bottom: 0.75rem;
 }
 
-.ad-miner-empty {
+.adm-empty {
   padding: 2rem;
   text-align: center;
-  color: var(--color-muted, #666);
-  border: 1px dashed var(--color-border, #333);
+  color: var(--color-muted-foreground);
+  border: 1px dashed var(--color-border);
   border-radius: 8px;
+  opacity: 0.7;
 }
 
-.ad-miner-result-row {
+.adm-row {
   display: flex;
   gap: 1rem;
   padding: 0.5rem 0;
-  border-bottom: 1px solid var(--color-border, #2a2a4a);
+  border-bottom: 1px solid var(--color-border);
   font-size: 0.8rem;
+  color: var(--color-foreground);
 }
 
-.ad-miner-result-row:last-child {
-  border-bottom: none;
-}
+.adm-row:last-child { border-bottom: none; }
 
-.ad-miner-result-date {
-  color: var(--color-muted, #888);
+.adm-row-date {
+  color: var(--color-muted-foreground);
   min-width: 100px;
 }
 
-.ad-miner-result-file {
-  color: var(--color-text, #ccc);
+.adm-row-file {
+  opacity: 0.8;
 }
 
-.ad-miner-result-error {
+.adm-row-err {
   color: var(--color-danger, #ff4444);
   font-size: 0.7rem;
 }

@@ -1,115 +1,126 @@
 /**
- * Ad Miner Dashboard — Frontend UI
+ * Ad Miner Dashboard — Hermes plugin tab
  * 
- * Tab for Hermes Command Center showing BOF ad mining pipeline status,
- * TrendTrack credits, recent ad results, and transformation pipeline state.
+ * Uses __HERMES_PLUGIN_SDK__ for React, API calls, and theme tokens.
+ * Registers an "Ad Miner" tab showing TrendTrack credits, pipeline status,
+ * and recent mining results.
  */
 
 (function() {
-  const API_BASE = '/api/dashboard/plugins/ad-miner-dashboard';
+  var SDK = window.__HERMES_PLUGIN_SDK__;
+  if (!SDK || !SDK.React) {
+    console.error("Ad Miner: Hermes Plugin SDK not found");
+    return;
+  }
 
-  // --- State ---
-  let state = {
-    status: null,
-    trendtrack: null,
-    recentResults: [],
-    loading: true
-  };
+  var React = SDK.React;
+  var h = React.createElement;
+  var useState = React.useState;
+  var useEffect = React.useEffect;
+  var useCallback = React.useCallback;
+  var api = SDK.api || {};
+  var fetchJSON = SDK.fetchJSON;
 
-  // --- API calls ---
-  async function fetchAPI(endpoint) {
-    try {
-      const res = await fetch(`${API_BASE}/${endpoint}`);
-      return await res.json();
-    } catch (e) {
-      return { status: 'error', error: e.message };
+  // --- API helpers ---
+
+  function safeFetch(endpoint) {
+    return fetchJSON
+      ? fetchJSON("/api/plugins/ad-miner-dashboard/" + endpoint)
+          .then(function(d) { return { ok: true, data: d }; })
+          .catch(function(e) { return { ok: false, error: e.message }; })
+      : Promise.resolve({ ok: false, error: "SDK.fetchJSON unavailable" });
+  }
+
+  // --- Components ---
+
+  function KPICard(props) {
+    return h("div", { className: "adm-card" },
+      h("div", { className: "adm-card-label" }, props.label),
+      h("div", { className: "adm-card-value", style: { color: props.color || "var(--color-accent, #00d4aa)" } }, props.value),
+      props.sub ? h("div", { className: "adm-card-sub" }, props.sub) : null
+    );
+  }
+
+  function RecentRuns(props) {
+    var results = props.results || [];
+    if (!results.length) {
+      return h("div", { className: "adm-empty" }, "No mining runs yet. First run scheduled for Friday.");
     }
+    return h("div", { className: "adm-section" },
+      h("h3", null, "Recent Mining Runs"),
+      results.map(function(r, i) {
+        return h("div", { key: i, className: "adm-row" },
+          h("span", { className: "adm-row-date" }, new Date(r.date).toLocaleDateString()),
+          h("span", { className: "adm-row-file" }, r.file),
+          r.error ? h("span", { className: "adm-row-err" }, r.error) : null
+        );
+      })
+    );
   }
 
-  async function refreshAll() {
-    state.loading = true;
-    render();
-    const [status, trendtrack, results] = await Promise.all([
-      fetchAPI('status'),
-      fetchAPI('check-trendtrack'),
-      fetchAPI('recent-results?limit=5')
-    ]);
-    state.status = status;
-    state.trendtrack = trendtrack;
-    state.recentResults = (results && results.results) ? results.results : [];
-    state.loading = false;
-    render();
-  }
+  // --- Main Page ---
 
-  // --- Render ---
-  function render() {
-    const root = document.getElementById('ad-miner-root');
-    if (!root) return;
+  function AdMinerPage() {
+    var creditsState = useState(null);
+    var statusState = useState(null);
+    var resultsState = useState([]);
+    var loadingState = useState(true);
+    var credits = creditsState[0], setCredits = creditsState[1];
+    var status = statusState[0], setStatus = statusState[1];
+    var results = resultsState[0], setResults = resultsState[1];
+    var loading = loadingState[0], setLoading = loadingState[1];
 
-    if (state.loading) {
-      root.innerHTML = '<div class="ad-miner-loading">Loading pipeline status...</div>';
-      return;
+    var load = useCallback(function() {
+      setLoading(true);
+      Promise.all([
+        safeFetch("status"),
+        safeFetch("check-trendtrack"),
+        safeFetch("recent-results?limit=5")
+      ]).then(function(packets) {
+        if (packets[0].ok) setStatus(packets[0].data);
+        if (packets[1].ok) setCredits(packets[1].data);
+        if (packets[2].ok && packets[2].data && packets[2].data.results) {
+          setResults(packets[2].data.results);
+        }
+      }).finally(function() { setLoading(false); });
+    }, []);
+
+    useEffect(function() {
+      load();
+      var interval = setInterval(load, 60000);
+      return function() { clearInterval(interval); };
+    }, [load]);
+
+    if (loading) {
+      return h("div", { className: "adm-loading" }, "Loading pipeline status...");
     }
 
-    const credits = state.trendtrack && state.trendtrack.credits_remaining ? state.trendtrack.credits_remaining : '--';
-    const lastRun = state.status && state.status.last_run ? new Date(state.status.last_run).toLocaleString() : 'Never';
-    const totalAds = state.status ? state.status.total_ads_mined : 0;
+    var credsRemaining = credits && credits.credits_remaining ? credits.credits_remaining : "--";
+    var lastRun = status && status.last_run ? new Date(status.last_run).toLocaleString() : "Never";
+    var totalAds = status ? (status.total_ads_mined || 0) : 0;
 
-    root.innerHTML = `
-      <div class="ad-miner-grid">
-        <!-- Status Cards -->
-        <div class="ad-miner-card">
-          <div class="ad-miner-card-header">Credits</div>
-          <div class="ad-miner-card-value ${credits === '--' ? 'dim' : ''}">${credits}</div>
-          <div class="ad-miner-card-sub">TrendTrack remaining</div>
-        </div>
-        <div class="ad-miner-card">
-          <div class="ad-miner-card-header">Last Run</div>
-          <div class="ad-miner-card-value">${lastRun}</div>
-          <div class="ad-miner-card-sub">Next: Mon/Wed/Fri 09:00 UTC</div>
-        </div>
-        <div class="ad-miner-card">
-          <div class="ad-miner-card-header">Ads Mined</div>
-          <div class="ad-miner-card-value">${totalAds.toLocaleString()}</div>
-          <div class="ad-miner-card-sub">Total pipeline output</div>
-        </div>
-
-        <!-- Recent Results -->
-        <div class="ad-miner-section">
-          <h3>Recent Mining Runs</h3>
-          ${state.recentResults.length === 0
-            ? '<div class="ad-miner-empty">No results yet. First run scheduled for Friday.</div>'
-            : state.recentResults.map(r => `
-              <div class="ad-miner-result-row">
-                <span class="ad-miner-result-date">${new Date(r.date).toLocaleDateString()}</span>
-                <span class="ad-miner-result-file">${r.file}</span>
-                ${r.error ? `<span class="ad-miner-result-error">${r.error}</span>` : ''}
-              </div>
-            `).join('')
-          }
-        </div>
-      </div>
-    `;
+    return h("div", { className: "adm-grid" },
+      h(KPICard, { label: "TrendTrack Credits", value: credsRemaining, color: credsRemaining === "--" ? "var(--color-muted)" : "var(--color-accent)", sub: "Remaining" }),
+      h(KPICard, { label: "Last Run", value: lastRun, sub: "Next: Mon/Wed/Fri 09:00 UTC" }),
+      h(KPICard, { label: "Ads Mined", value: totalAds.toLocaleString(), sub: "Total pipeline output" }),
+      h(RecentRuns, { results: results })
+    );
   }
 
-  // --- Init ---
-  function init() {
-    // Create root element if not provided by dashboard
-    let root = document.getElementById('ad-miner-root');
-    if (!root) {
-      root = document.createElement('div');
-      root.id = 'ad-miner-root';
-      document.querySelector('.dashboard-content')?.appendChild(root);
-    }
-    refreshAll();
-    // Auto-refresh every 60s
-    setInterval(refreshAll, 60000);
+  // --- Register with Hermes ---
+
+  function register(pluginSDK) {
+    var React = pluginSDK.React;
+    return {
+      name: "Ad Miner",
+      icon: "target",
+      path: "/ad-miner",
+      component: function() { return React.createElement(AdMinerPage); }
+    };
   }
 
-  // Wait for DOM
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
+  // Expose register for Hermes plugin loader
+  if (typeof window !== "undefined") {
+    window.__hermes_plugin_register__ = register;
   }
 })();

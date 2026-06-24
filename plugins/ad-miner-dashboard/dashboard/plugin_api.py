@@ -1,94 +1,115 @@
 """
-Ad Miner Dashboard — Plugin API module for Hermes Command Center.
+Backend routes for the Ad Miner dashboard plugin.
 
-Provides backend endpoints for the Ad Miner dashboard tab.
-Queries TrendTrack API, reads cron job status, and surfaces
-ad mining results, KPI summaries, and transformation pipeline state.
+Uses FastAPI APIRouter — Hermes auto-loads this from the manifest's api_modules.
 """
+from __future__ import annotations
 
 import json
 import os
-import time
-from datetime import datetime, timedelta
+import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, Dict, List
 
-# --- Configuration ---
+from fastapi import APIRouter
+
+router = APIRouter()
+
 TRENDTRACK_BASE = "https://api.trendtrack.io"
-HERMES_HOME = Path(os.getenv("HERMES_HOME", str(Path.home() / ".hermes")))
-CRON_OUTPUT_DIR = HERMES_HOME / "cron" / "output"
-STATE_FILE = HERMES_HOME / "plugins" / "ad-miner-dashboard" / "state.json"
 
-# --- Helpers ---
 
-def _load_state():
-    if STATE_FILE.exists():
-        return json.loads(STATE_FILE.read_text())
+def _hermes_home() -> Path:
+    try:
+        from hermes_cli.config import get_hermes_home
+        return Path(get_hermes_home()).expanduser()
+    except Exception:
+        return Path(os.environ.get("HERMES_HOME", "~/.hermes")).expanduser()
+
+
+def _load_state() -> Dict[str, Any]:
+    state_file = _hermes_home() / "plugins" / "ad-miner-dashboard" / "state.json"
+    if state_file.exists():
+        try:
+            return json.loads(state_file.read_text())
+        except Exception:
+            pass
     return {"last_run": None, "total_ads_mined": 0, "credits_remaining": None}
 
 
-def _save_state(state):
-    STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    STATE_FILE.write_text(json.dumps(state, indent=2))
+def _save_state(state: Dict[str, Any]) -> None:
+    state_file = _hermes_home() / "plugins" / "ad-miner-dashboard" / "state.json"
+    state_file.parent.mkdir(parents=True, exist_ok=True)
+    state_file.write_text(json.dumps(state, indent=2))
 
 
-def _cron_output_files():
-    """List recent BOF ad miner output files."""
-    if not CRON_OUTPUT_DIR.exists():
+def _cron_output_files() -> List[Dict[str, Any]]:
+    output_dir = _hermes_home() / "cron" / "output"
+    if not output_dir.exists():
         return []
-    files = sorted(CRON_OUTPUT_DIR.glob("bof-ad-miner-*.json"), reverse=True)
-    return [{"name": f.name, "mtime": datetime.fromtimestamp(f.stat().st_mtime).isoformat(), "size": f.stat().st_size} for f in files[:10]]
+    files = sorted(output_dir.glob("bof-ad-miner-*.json"), reverse=True)
+    return [
+        {
+            "name": f.name,
+            "date": datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc).isoformat(),
+            "size": f.stat().st_size,
+        }
+        for f in files[:10]
+    ]
 
 
-# --- Endpoints ---
+def _read_latest_results(limit: int = 5) -> List[Dict[str, Any]]:
+    files = _cron_output_files()
+    results = []
+    for f_info in files[:limit]:
+        path = _hermes_home() / "cron" / "output" / f_info["name"]
+        try:
+            data = json.loads(path.read_text())
+            results.append({
+                "file": f_info["name"],
+                "date": f_info["date"],
+                "data": data if isinstance(data, dict) else {"raw": str(data)[:500]},
+            })
+        except Exception:
+            results.append({"file": f_info["name"], "date": f_info["date"], "error": "unreadable"})
+    return results
 
-def get_status():
-    """Dashboard status summary — returns state + cron output files."""
+
+@router.get("/status")
+async def status() -> Dict[str, Any]:
     state = _load_state()
-    return json.dumps({
-        "status": "ok",
+    return {
+        "ok": True,
         "last_run": state.get("last_run"),
         "total_ads_mined": state.get("total_ads_mined", 0),
         "credits_remaining": state.get("credits_remaining"),
         "recent_outputs": _cron_output_files(),
         "next_cron_run": "Mon/Wed/Fri 09:00 UTC",
-    })
+    }
 
 
-def get_recent_results(limit: int = 5):
-    """Return data from the most recent mining runs."""
-    files = _cron_output_files()
-    results = []
-    for f in files[:limit]:
-        try:
-            data = json.loads(f.read_text())
-            results.append({
-                "file": f["name"],
-                "date": f["mtime"],
-                "data": data if isinstance(data, dict) else {"raw": str(data)[:500]},
-            })
-        except Exception:
-            results.append({"file": f["name"], "date": f["mtime"], "error": "unreadable"})
-    return json.dumps({"results": results})
+@router.get("/recent-results")
+async def recent_results(limit: int = 5) -> Dict[str, Any]:
+    return {
+        "ok": True,
+        "results": _read_latest_results(limit),
+    }
 
 
-def check_trendtrack():
-    """Check TrendTrack API access and credits."""
-    import urllib.request
-
+@router.get("/check-trendtrack")
+async def check_trendtrack() -> Dict[str, Any]:
     key = os.getenv("TRENDTRACK_API_KEY", "")
     if not key:
-        return json.dumps({"status": "error", "error": "TRENDTRACK_API_KEY not set"})
+        return {"ok": False, "error": "TRENDTRACK_API_KEY not set"}
 
     try:
-        # Check /v1/me
         req = urllib.request.Request(
             f"{TRENDTRACK_BASE}/v1/me",
-            headers={"Authorization": f"Bearer {key}"},
+            headers={"Authorization": f"Bearer {key}", "Accept": "application/json"},
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
             me_data = json.loads(resp.read().decode())
 
-        # Check credits
         req2 = urllib.request.Request(
             f"{TRENDTRACK_BASE}/v1/usage",
             headers={"Authorization": f"Bearer {key}"},
@@ -100,11 +121,11 @@ def check_trendtrack():
         state["credits_remaining"] = credits
         _save_state(state)
 
-        return json.dumps({
-            "status": "ok",
+        return {
+            "ok": True,
             "authenticated": True,
             "workspace": me_data if isinstance(me_data, dict) else {"raw": str(me_data)[:200]},
             "credits_remaining": credits,
-        })
+        }
     except Exception as e:
-        return json.dumps({"status": "error", "error": str(e)})
+        return {"ok": False, "error": str(e)}
