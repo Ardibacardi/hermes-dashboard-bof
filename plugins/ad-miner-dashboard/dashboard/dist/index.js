@@ -1,9 +1,8 @@
 /**
- * Ad Miner Dashboard — Hermes plugin tab
+ * Ad Miner Dashboard — Hermes plugin entry point
  * 
  * Uses __HERMES_PLUGIN_SDK__ for React, API calls, and theme tokens.
- * Registers an "Ad Miner" tab showing TrendTrack credits, pipeline status,
- * and recent mining results.
+ * register() returns the tab component for Hermes to mount.
  */
 
 (function() {
@@ -18,17 +17,17 @@
   var useState = React.useState;
   var useEffect = React.useEffect;
   var useCallback = React.useCallback;
-  var api = SDK.api || {};
   var fetchJSON = SDK.fetchJSON;
 
   // --- API helpers ---
 
   function safeFetch(endpoint) {
-    return fetchJSON
-      ? fetchJSON("/api/plugins/ad-miner-dashboard/" + endpoint)
-          .then(function(d) { return { ok: true, data: d }; })
-          .catch(function(e) { return { ok: false, error: e.message }; })
-      : Promise.resolve({ ok: false, error: "SDK.fetchJSON unavailable" });
+    if (!fetchJSON) {
+      return Promise.resolve({ ok: false, error: "SDK.fetchJSON unavailable" });
+    }
+    return fetchJSON("/api/plugins/ad-miner-dashboard/" + endpoint)
+      .then(function(d) { return { ok: true, data: d }; })
+      .catch(function(e) { return { ok: false, error: e && e.message ? e.message : String(e) }; });
   }
 
   // --- Components ---
@@ -36,7 +35,7 @@
   function KPICard(props) {
     return h("div", { className: "adm-card" },
       h("div", { className: "adm-card-label" }, props.label),
-      h("div", { className: "adm-card-value", style: { color: props.color || "var(--color-accent, #00d4aa)" } }, props.value),
+      h("div", { className: "adm-card-value", style: { color: props.color || "var(--color-accent)" } }, props.value),
       props.sub ? h("div", { className: "adm-card-sub" }, props.sub) : null
     );
   }
@@ -44,7 +43,7 @@
   function RecentRuns(props) {
     var results = props.results || [];
     if (!results.length) {
-      return h("div", { className: "adm-empty" }, "No mining runs yet. First run scheduled for Friday.");
+      return h("div", { className: "adm-empty" }, "No mining runs yet. First run Friday 09:00 UTC.");
     }
     return h("div", { className: "adm-section" },
       h("h3", null, "Recent Mining Runs"),
@@ -82,7 +81,7 @@
         if (packets[2].ok && packets[2].data && packets[2].data.results) {
           setResults(packets[2].data.results);
         }
-      }).finally(function() { setLoading(false); });
+      }).catch(function() {}).finally(function() { setLoading(false); });
     }, []);
 
     useEffect(function() {
@@ -100,7 +99,7 @@
     var totalAds = status ? (status.total_ads_mined || 0) : 0;
 
     return h("div", { className: "adm-grid" },
-      h(KPICard, { label: "TrendTrack Credits", value: credsRemaining, color: credsRemaining === "--" ? "var(--color-muted)" : "var(--color-accent)", sub: "Remaining" }),
+      h(KPICard, { label: "TrendTrack Credits", value: credsRemaining, color: credsRemaining === "--" ? "var(--color-muted-foreground)" : "var(--color-accent)", sub: "Remaining" }),
       h(KPICard, { label: "Last Run", value: lastRun, sub: "Next: Mon/Wed/Fri 09:00 UTC" }),
       h(KPICard, { label: "Ads Mined", value: totalAds.toLocaleString(), sub: "Total pipeline output" }),
       h(RecentRuns, { results: results })
@@ -108,19 +107,14 @@
   }
 
   // --- Register with Hermes ---
+  // Hermes calls register(SDK) and expects { name, icon, path, component }
+  // or the tab is derived from manifest.json
 
   function register(pluginSDK) {
-    var React = pluginSDK.React;
     return {
-      name: "Ad Miner",
-      icon: "target",
-      path: "/ad-miner",
-      component: function() { return React.createElement(AdMinerPage); }
+      component: function() { return pluginSDK.React.createElement(AdMinerPage); }
     };
   }
 
-  // Expose register for Hermes plugin loader
-  if (typeof window !== "undefined") {
-    window.__hermes_plugin_register__ = register;
-  }
+  window.__hermes_plugin_register__ = register;
 })();

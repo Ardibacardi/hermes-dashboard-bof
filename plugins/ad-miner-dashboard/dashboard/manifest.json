@@ -1,14 +1,14 @@
 {
   "name": "ad-miner-dashboard",
+  "label": "Ad Miner",
+  "description": "BOF ad mining ops for Metabolae — TrendTrack credits, pipeline status, KPI filtering, and recent mining results",
+  "icon": "Target",
   "version": "0.1.0",
-  "description": "BOF Ad Miner command center for Metabolae — TrendTrack ad intelligence, KPI filtering, creative transformation pipeline, and cron job control",
-  "author": "Arthur Moonen",
-  "license": "MIT",
-  "hermes_min_version": "0.11.0",
   "tab": {
-    "label": "Ad Miner",
-    "icon": "target",
-    "path": "/ad-miner"
+    "path": "/ad-miner",
+    "position": "after:sessions"
   },
-  "api_modules": ["plugin_api"]
+  "entry": "dist/index.js",
+  "css": "dist/style.css",
+  "api": "plugin_api.py"
 }
